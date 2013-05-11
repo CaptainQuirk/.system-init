@@ -1,0 +1,226 @@
+#!/bin/bash
+
+#-----------------------------------------------------------------------------#
+# This script installs basic packages to let Chef-Solo magic operate. Two     #
+# functions, an array and a loop over it and it's done                        #
+#-----------------------------------------------------------------------------#
+
+# Global vars
+# -----------
+
+# Global container to hold value of package name
+# found after a search with apt-cache search
+package_name=""
+
+# Array of installed packages to be used to remove
+# them with apt-get remove on abort/skipping
+installed_packages=()
+
+
+# Functions
+# ---------
+
+# Prints a message and prompts the user
+# to press enter to continue.
+pause(){
+  local message="$@"
+  echo "$message"
+  read -p "Press [enter] to continue" key
+}
+
+# Simple apt-get operation after user confirmation
+# Array of installed packages gets updated after installation
+# On abort, already installed packages are removed
+get_package(){
+  local package="$@"
+  read -p "  »» Press [enter] to install package « $package » or 0 to abort : " key
+  case $key in
+    "") echo "  »» Installing package"
+        sudo apt-get install $package
+        installed_packages+=($package)
+    ;;
+    0)  echo "  »» Aborting installation"
+        remove_installed_packages
+        exit 1
+    ;;
+  esac
+}
+
+# Removes installed packages with apt-get
+# remove
+remove_installed_packages(){
+  for package in "${installed_packages[@]}"
+  do :
+    sudo apt-get remove $package
+  done
+
+  echo "» Installed packages were removed"
+}
+
+# Search for a package through apt-cache search
+# And stores the result of the search in a global
+# variable for lack of a better way for the moment
+search_package(){
+
+  # Getting package name to search for
+  local name="$@"
+
+  # Prompting the user with paged list
+  # of packages corresponding to name given
+  read -p "  » Press [enter] to get a list of available packages for « $name »" key
+  apt-cache search $name | less
+
+  # Looping infinitely unless the package name
+  # given exists or user wants to exit
+  while :
+  do
+
+    # Prompt user for exact package name or exit
+    read -p "  » Enter the « $name » package name or type 0 to exit: " package
+    case $package in
+      # Skipping and removing installed packages
+      0) echo "» Skipping"
+         remove_installed_packages
+         break
+      ;;
+
+      # Searching for packages with this exact package name
+      *)  found_packages=`apt-cache search "^$package$" | wc -l`
+          case $found_packages in
+          # No package found
+          0) pause "  » No package named « $package » was found.";;
+
+          # Just one package found, bingo !
+          #1) echo "  »» Installing package « $package »";
+          1) package_name=$package;break;;
+            #get_package $package;
+            #break;;
+
+          # More than one package found ! Error
+          *) pause "» $found_packages package(s) corresponding to $package were found.";;
+        esac
+    esac
+  done
+}
+
+
+# 1 - Prompts the user for a package presumably fetched in a list of results
+#     returned by the command apt-cache search
+# 2 - Checks the input validity
+# 3 - Installs package using apt
+install_package() {
+  # Retrieving param
+  local name="$@"
+
+  # Testing if we can get the package directly by its
+  # name
+  echo "» Looking for package « $name »"
+  if [ `apt-cache search "^$name$" | wc -l` == 1 ];
+  then
+    get_package $name
+  else
+    echo "  » Package « $name » wasn't found. We'll look for it !"
+    search_package $name
+
+    # Only installing if package name isn't empty
+    if [ "$package_name" != '' ];
+    then
+      get_package $package_name
+      package_name=''
+    fi
+  fi
+}
+
+# Launches a serie of operations related to chef-solo
+init_chef() {
+  # Retrieve our chef git repository
+  if [ ! -d "~/.oh-my-chef" ];
+  then
+
+    # Moving to home directory if needs be
+    if [ `pwd` != $HOME ];
+    then
+      echo "» Moving to home directory"
+      cd $HOME
+    fi
+
+    # Retrieving git repository
+    echo "» Cloning .oh-my-chef repository"
+    git clone https://github.com/CaptainQuirk/.oh-my-chef 
+  else
+    # Warning user that directory already exists
+    echo "» .oh-my-chef directory exists already"
+    echo " exiting"
+    exit 1;
+  fi
+
+  # Changing CWD to this new directory
+  echo "» Moving to .oh-my-chef directory"
+  cd ~/.oh-my-chef
+
+  # Installing bundler gem
+  echo "» Installing bundler gem"
+  sudo gem install bundler
+
+  # Installing project dependencies
+  echo "» Installing project dependencies"
+  bundle
+
+  # Making cook script executable
+  chmod +x cook-it-all
+
+  # Launching chef solo
+  sudo ./cook-it-all
+}
+
+# Script logic
+# ------------
+
+# Install packages
+declare -a PACKAGES=('git' 'ruby' 'rubygems')
+for package in "${PACKAGES[@]}"
+do :
+  install_package $package
+done
+
+init_chef
+
+
+
+#echo "» Installing newest ruby"
+#echo "  » List of available ruby packages "
+#apt-cache search ruby | less
+
+##read -p "  » Enter the ruby package name : " package
+
+##found_packages=`apt-cache search "^$package$" | wc -l`
+
+#while :
+#do
+  #read -p "  » Enter the ruby package name : " package
+  #found_packages=`apt-cache search "^$package$" | wc -l`
+  #case $found_packages in
+    #0) pause "  » No package named « $package » was found.";;
+       ##printf "» Enter the ruby package name : "
+       ##break;; 
+    #1) echo "  »» Installing package « $package »";
+       #sudo apt-get install $package;
+       #break;;
+    #*) pause "» $found_packages package(s) corresponding to $package were found.";;
+       ##printf "» Enter the ruby package name : ";
+       ##break;;
+  #esac
+#done
+
+
+
+#if [ $found_packages == 0 ];
+#then
+  #echo "  » No package $package found."
+#elif [ $found_packages \> 1 ];
+#then
+  #echo "  » $found_packages package(s) corresponding to $package were found."
+#else
+  #sudo apt-get install $package
+#fi
+

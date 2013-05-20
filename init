@@ -168,59 +168,39 @@ init_chef() {
 
   # Making cook script executable
   chmod +x cook-it-all
-
-  # Launching chef solo
-  sudo ./cook-it-all
 }
 
 # Script logic
 # ------------
 
 # Install packages
-declare -a PACKAGES=('git' 'ruby' 'rubygems')
+declare -a PACKAGES=('git' 'ruby' 'ruby-dev' 'rubygems')
 for package in "${PACKAGES[@]}"
 do :
   install_package $package
 done
 
+# Updating packages
+echo "Updating distribution with apt"
+sudo apt-get update
+sudo apt-get dist-upgrade
+
+# Initializing my chef installation
+echo "Initializing chef install"
 init_chef
 
+read -p "  » Press [enter] to launch chef or type 0 to exit: " answer 
+case $answer in
+  # Skipping and removing installed packages
+  0) echo " Job complete ! Exiting"
+      exit 0
+  ;;
 
+  # Searching for packages with this exact package name
+  *) 
+    # Launching chef solo
+    sudo ./cook-it-all
+  ;;
+ esac
 
-#echo "» Installing newest ruby"
-#echo "  » List of available ruby packages "
-#apt-cache search ruby | less
-
-##read -p "  » Enter the ruby package name : " package
-
-##found_packages=`apt-cache search "^$package$" | wc -l`
-
-#while :
-#do
-  #read -p "  » Enter the ruby package name : " package
-  #found_packages=`apt-cache search "^$package$" | wc -l`
-  #case $found_packages in
-    #0) pause "  » No package named « $package » was found.";;
-       ##printf "» Enter the ruby package name : "
-       ##break;; 
-    #1) echo "  »» Installing package « $package »";
-       #sudo apt-get install $package;
-       #break;;
-    #*) pause "» $found_packages package(s) corresponding to $package were found.";;
-       ##printf "» Enter the ruby package name : ";
-       ##break;;
-  #esac
-#done
-
-
-
-#if [ $found_packages == 0 ];
-#then
-  #echo "  » No package $package found."
-#elif [ $found_packages \> 1 ];
-#then
-  #echo "  » $found_packages package(s) corresponding to $package were found."
-#else
-  #sudo apt-get install $package
-#fi
 

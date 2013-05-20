@@ -1,4 +1,4 @@
-#!bin/bash
+#!/bin/bash
 
 # Array of removed packages
 removed_packages=()
@@ -55,7 +55,7 @@ uninstall_package(){
   local package="$@"
   read -p "  »» Press [enter] to remove package « $package » or 0 to abort : " key
   case $key in
-    "") echo "  »» Installing package"
+    "") echo "  »» Removing package"
         sudo apt-get remove $package
         removed_packages+=($package)
     ;;
@@ -102,7 +102,8 @@ do :
 done
 
 # Removing .oh-my-chef directory
-if [ -d "~/.oh-my-chef" k];
+# @todo Why was this directory not removed ??
+if [ -d "~/.oh-my-chef" ];
 then
   echo "» Removing .oh-my-chef directory"
   rm -rf ~/.oh-my-chef
@@ -114,6 +115,8 @@ then
   echo "» Removing .bundler directory"
   rm -rf ~/.bundler
 fi
+
+# @todo removing chef .chef directory
 
 exit 0;
 

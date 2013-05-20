@@ -134,6 +134,7 @@ install_package() {
 # Launches a serie of operations related to chef-solo
 init_chef() {
   # Retrieve our chef git repository
+  # @todo this test doesn't work !!!
   if [ ! -d "~/.oh-my-chef" ];
   then
 
